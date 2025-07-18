@@ -1,0 +1,106 @@
+// See it here: https://www.instagram.com/p/DMQM2EwyrXg/?img_index=1
+// You need Ultrasonic Sensor, Buzzer, RGB LED, Arduino Uno
+
+#include <Arduino.h>
+
+const int redPin = 3;
+const int greenPin = 5;
+const int bluePin = 6;
+
+const int trigPin = 9;
+const int echoPin = 10;
+
+const int buzzer = 7;
+
+long duration;
+int distance;
+int readings[5];
+int readIndex = 0;
+int total = 0;
+int average = 0;
+
+unsigned long previousMillis = 0;
+const int toggleInterval = 200;
+bool buzzerState = false;
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
+
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  pinMode(buzzer, OUTPUT);
+
+  for (int i = 0; i < 5; i++) {
+    readings[i] = 0;
+  }
+}
+
+void loop() {
+  measureDistance();
+
+  //Serial.print("Smoothed Distance: ");
+  //Serial.println(average);
+
+  if (average >= 30) {
+    setColor(255, 0, 0);
+    toggleBuzzer();
+  } else if (average <= 30 && average > 20) {
+    setColor(0, 0, 255);
+    noTone(buzzer);
+  } else if (average <= 20 && average > 10) {
+    setColor(255, 0, 255);
+    noTone(buzzer);
+  } else if (average <= 10 && average > 5) {
+    setColor(255, 255, 0);
+    noTone(buzzer);
+  } else if (average <= 5) {
+    setColor(0, 255, 0);
+    noTone(buzzer);
+  }
+}
+
+void measureDistance() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration * 0.034 / 2;
+
+  total -= readings[readIndex];
+  readings[readIndex] = distance;
+  total += readings[readIndex];
+  readIndex = (readIndex + 1) % 5;
+  average = total / 5;
+}
+
+void setColor(int redValue, int greenValue, int blueValue) {
+  analogWrite(redPin, redValue);
+  analogWrite(greenPin, greenValue);
+  analogWrite(bluePin, blueValue);
+}
+
+void toggleBuzzer() {
+  static bool buzzerState = false;
+  static unsigned long previousMillis = 0;
+
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= toggleInterval) {
+    previousMillis = currentMillis;
+    buzzerState = !buzzerState;
+
+    if (buzzerState) {
+      tone(buzzer, 3000);
+    } else {
+      noTone(buzzer);
+    }
+  }
+}
